@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { query } = require('express');
 require('dotenv').config();
 
 const port = 5000 || process.env.PORT;
@@ -19,13 +20,32 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 async function run() {
     try{
         const categoriesCollection = client.db("copshop").collection("categories");
+        const productsCollection = client.db("copshop").collection("products");
 
         //Get All Categories
         app.get('/categories', async (req, res) => {
-            const query = {};
+            let query = {};
             const categories = await categoriesCollection.find(query).toArray();
             res.send(categories);
         });
+
+        //Get One Category
+        app.get('/categories/:id', async (req, res) => {
+            let query = { _id: ObjectId(req.params.id) };
+            const category = await categoriesCollection.findOne(query);
+            res.send(category);
+        });
+
+        //Get Products
+        app.get('/products/:categoryId', async (req, res) => {
+            const categoryId = req.params.categoryId;
+            let query = {};
+            if(categoryId){
+                query = {categoryId: categoryId};
+            };
+            const products = await productsCollection.find(query).toArray();
+            res.send(products);
+        });  
     }
     finally{
 
