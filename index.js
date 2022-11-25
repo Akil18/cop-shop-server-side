@@ -23,6 +23,7 @@ async function run() {
         const categoriesCollection = client.db("copshop").collection("categories");
         const productsCollection = client.db("copshop").collection("products");
         const usersCollection = client.db("copshop").collection("users");
+        const ordersCollection = client.db("copshop").collection("orders");
 
         // Get All Categories
         app.get('/categories', async (req, res) => {
@@ -90,6 +91,13 @@ async function run() {
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user);
+            res.json(result);
+        });
+
+        //Post Order
+        app.post('/orders', async (req, res) => {
+            const order = req.body;
+            const result = await ordersCollection.insertOne(order);
             res.json(result);
         });
     }
