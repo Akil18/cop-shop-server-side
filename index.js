@@ -24,21 +24,21 @@ async function run() {
         const productsCollection = client.db("copshop").collection("products");
         const usersCollection = client.db("copshop").collection("users");
 
-        //Get All Categories
+        // Get All Categories
         app.get('/categories', async (req, res) => {
             let query = {};
             const categories = await categoriesCollection.find(query).toArray();
             res.send(categories);
         });
 
-        //Get One Category
+        // Get One Category
         app.get('/categories/:id', async (req, res) => {
             let query = { _id: ObjectId(req.params.id) };
             const category = await categoriesCollection.findOne(query);
             res.send(category);
         });
 
-        //Get Products
+        // Get Products
         app.get('/products/:categoryId', async (req, res) => {
             const categoryId = req.params.categoryId;
             let query = {};
@@ -47,6 +47,30 @@ async function run() {
             };
             const products = await productsCollection.find(query).toArray();
             res.send(products);
+        });
+
+        // Check if user is Admin
+        app.get('/users/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = {email};
+            const user = await usersCollection.findOne(query);
+            res.send({isAdmin: user?.role === 'admin'});
+        });
+
+        // Check if user is Seller
+        app.get('/users/seller/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = {email};
+            const user = await usersCollection.findOne(query);
+            res.send({isSeller: user?.role === 'seller'});
+        });
+
+        // Check if user is Buyer
+        app.get('/users/buyer/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = {email};
+            const user = await usersCollection.findOne(query);
+            res.send({isBuyer: user?.role === 'buyer'});
         });
 
         // JWT
@@ -62,7 +86,7 @@ async function run() {
             res.status(403).send({accessToken: ''});
         });
         
-        //Post User
+        // Post User
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user);
