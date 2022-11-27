@@ -40,14 +40,47 @@ async function run() {
         });
 
         // Get Products
-        app.get('/products/:categoryId', async (req, res) => {
-            const categoryId = req.params.categoryId;
+        app.get('/products/:category', async (req, res) => {
+            const category = req.params.category;
             let query = {};
-            if(categoryId){
-                query = {categoryId: categoryId};
+            if(category){
+                query = {category: category};
             };
             const products = await productsCollection.find(query).toArray();
             res.send(products);
+        });
+
+        // Get Advertised Products
+        app.get('/advertisedproducts', async (req, res) => {
+            let query = { advertise: true };
+            const products = await productsCollection.find(query).toArray();
+            res.send(products);
+        });
+
+        // Get Products By Email
+        app.get('/products', async (req, res) => {
+            const email = req.query.email;
+            const query = {email: email};
+            const products = await productsCollection.find(query).toArray();
+            res.send(products);
+        });
+
+        // Add Product
+        app.post('/products', async (req, res) => {
+            const product = req.body;
+            const result = await productsCollection.insertOne(product);
+            res.json(result);
+        });
+
+        // Update Product with to Advertise
+        app.put('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const product = req.body;
+            const query = { _id: ObjectId(id) };
+            const options = { upsert: true };
+            const newValues = { $set: {advertise: true} };
+            const result = await productsCollection.updateOne(query, newValues, options);
+            res.send(result);
         });
 
         // Check if user is Admin
