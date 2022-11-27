@@ -17,6 +17,26 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.nvyyp05.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+// Verify Token
+function verifyJWT(req, res, next){
+    const authHeader = req.headers.authorization;
+    console.log(authHeader)
+    if(!authHeader){
+        res.status(401).send('Unauthorized access');
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    console.log(token)
+    jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+        if(err){
+            res.status(403).send('Forbidden access');
+        }
+        req.decoded = decoded;
+        next();
+    });
+}
+
 //API 
 async function run() {
     try{
@@ -73,7 +93,7 @@ async function run() {
         });
 
         // Update Product with to Advertise
-        app.put('/products/:id', async (req, res) => {
+        app.put('/products/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const product = req.body;
             const query = { _id: ObjectId(id) };
@@ -119,11 +139,51 @@ async function run() {
             console.log(user);
             res.status(403).send({accessToken: ''});
         });
+
+        // Get All Buyers
+        app.get('/buyers', async (req, res) => {
+            const query = {role: 'buyer'};
+            const buyers = await usersCollection.find(query).toArray();
+            res.send(buyers);
+        });
+
+        // Get All Sellers
+        app.get('/sellers', async (req, res) => {
+            const query = {role: 'seller'};
+            const sellers = await usersCollection.find(query).toArray();
+            res.send(sellers);
+        });
         
         // Post User
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user);
+            res.json(result);
+        });
+
+        // Get User
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = {email: email};
+            const user = await usersCollection.findOne(query);
+            res.send(user);
+        });
+
+        // Verify User
+        app.put('/admin/users/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const options = { upsert: true };
+            const newValues = { $set: {verifiedUser: true} };
+            const result = await usersCollection.updateOne(query, newValues, options);
+            res.send(result);
+        });
+
+        // Delete User
+        app.delete('/admin/users/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await usersCollection.deleteOne(query);
             res.json(result);
         });
 
