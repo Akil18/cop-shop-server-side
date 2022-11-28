@@ -187,10 +187,43 @@ async function run() {
             res.json(result);
         });
 
-        //Post Order
+        // Post Order
         app.post('/orders', async (req, res) => {
             const order = req.body;
             const result = await ordersCollection.insertOne(order);
+            res.json(result);
+        });
+
+        // Get Orders
+        app.get('/orders/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = {buyerEmail: email};
+            const orders = await ordersCollection.find(query).toArray();
+            res.send(orders);
+        });
+
+        // Report item
+        app.put('/reportItem/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const options = { upsert: true };
+            const newValues = { $set: {report: true} };
+            const result = await productsCollection.updateOne(query, newValues, options);
+            res.send(result);
+        });
+
+        // Get Reported Items
+        app.get('/reportedItems', async (req, res) => {
+            const query = {report: true};
+            const reportedItems = await productsCollection.find(query).toArray();
+            res.send(reportedItems);
+        });
+
+        // Delete Reported Item
+        app.delete('/reportedItems/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const result = await productsCollection.deleteOne(query);
             res.json(result);
         });
     }
