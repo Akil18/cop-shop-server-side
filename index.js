@@ -4,6 +4,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const { query } = require('express');
 require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const port = 5000 || process.env.PORT;
 
@@ -44,6 +45,7 @@ async function run() {
         const productsCollection = client.db("copshop").collection("products");
         const usersCollection = client.db("copshop").collection("users");
         const ordersCollection = client.db("copshop").collection("orders");
+        const paymentsCollection = client.db("copshop").collection("payments");
 
         // Get All Categories
         app.get('/categories', async (req, res) => {
@@ -127,6 +129,51 @@ async function run() {
             res.send({isBuyer: user?.role === 'buyer'});
         });
 
+        // Integrate Stripe
+        app.post('/create-payment-intent', async (req, res) => {
+            console.log(req.body);
+            const order = req.body;
+            const amount = order.price * 100;
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                currency: 'usd',
+                amount: amount,
+                "payment_method_types": [
+                    "card"
+                ]
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            });
+        });
+
+        // Post Payment
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+            const orderId = payment.orderId;
+            const orderFilter = { _id: ObjectId(orderId) };
+            const updatedOrderDoc = {
+                $set: {
+                    paid: true,
+                    paymentId: payment.paymentId,
+                },
+            };
+            const updatedOrderResult = await ordersCollection.updateOne(orderFilter, updatedOrderDoc);
+            const productId = payment.productId;
+            const productFilter = { _id: ObjectId(productId) };
+            const updatedProductDoc = {
+                $set: {
+                    advertise: false,
+                    sold: true,
+                },
+            };
+            const options = { upsert: true };
+            const updatedProductResult = await productsCollection.updateOne(productFilter, updatedProductDoc, options);
+            res.send(result);
+        });
+
         // JWT
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
@@ -190,8 +237,15 @@ async function run() {
         // Post Order
         app.post('/orders', async (req, res) => {
             const order = req.body;
-            const result = await ordersCollection.insertOne(order);
-            res.json(result);
+            const query = {buyerEmail: order.buyerEmail, title: order.title};
+            const previousOrder = await ordersCollection.findOne(query);
+            if(previousOrder){
+                res.json({message: 'Order already exists'});
+            }
+            else{
+                const result = await ordersCollection.insertOne(order);
+                res.json(result);
+            }
         });
 
         // Get Orders
@@ -200,6 +254,14 @@ async function run() {
             const query = {buyerEmail: email};
             const orders = await ordersCollection.find(query).toArray();
             res.send(orders);
+        });
+
+        // Get One Order by ID for Payment
+        app.get('/orders/payment/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = {_id: ObjectId(id)};
+            const order = await ordersCollection.findOne(query);
+            res.send(order);
         });
 
         // Report item
